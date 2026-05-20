@@ -659,6 +659,31 @@
             syncTotals();
         }
 
+        async function loadAvailability() {
+            try {
+                const response = await fetch(ticketingApiUrl + "/matches/" + encodeURIComponent(matchId) + "/availability");
+                if (!response.ok) {
+                    return;
+                }
+                const data = await response.json();
+                if (typeof data.available_seats === "number") {
+                    availableSeats = Math.max(0, data.available_seats);
+                    form.dataset.seats = String(availableSeats);
+                }
+                if (typeof data.unit_price === "number") {
+                    unitPrice = data.unit_price;
+                    form.dataset.unitPrice = String(unitPrice);
+                }
+                if (data.currency) {
+                    currency = data.currency;
+                    form.dataset.currency = data.currency;
+                }
+                syncAvailability();
+            } catch (error) {
+                // Keep the server-rendered values if the availability API is temporarily unavailable.
+            }
+        }
+
         async function requestJson(url, options) {
             const token = window.GXAuth.requireAuthOrRedirect(window.location.pathname);
             if (!token) {
@@ -706,6 +731,8 @@
                         match_status: form.dataset.status || "scheduled",
                     }),
                 });
+                availableSeats = Math.max(availableSeats - quantity, 0);
+                syncAvailability();
                 setMessage("Бронирование создано. Открываем корзину...", "success");
                 window.location.href = cartUrl;
             } catch (error) {
@@ -717,6 +744,7 @@
         quantityInput.addEventListener("input", syncTotals);
         form.addEventListener("submit", submitBooking);
         syncAvailability();
+        loadAvailability();
     })();
 </script>
 {% endif %}
