@@ -1,0 +1,13 @@
+.git
+.codex
+.ci
+__pycache__/
+*.pyc
+.pytest_cache/
+venv/
+db.sqlite3
+*.db
+services/
+services/**/__pycache__/
+services/**/ticketing.db
+services/**/.venv/

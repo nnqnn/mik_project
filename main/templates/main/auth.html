@@ -1,0 +1,201 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}{{ title }} - GoroXcore{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="content-section">
+    <div class="auth-grid">
+        <section class="auth-card">
+            <h2>Вход</h2>
+            <form id="login-form" class="auth-form">
+                <label>
+                    Email
+                    <input type="email" id="login-email" required>
+                </label>
+                <label>
+                    Пароль
+                    <input type="password" id="login-password" required>
+                </label>
+                <button type="submit">Войти</button>
+            </form>
+        </section>
+
+        <section class="auth-card">
+            <h2>Регистрация</h2>
+            <form id="register-form" class="auth-form">
+                <label>
+                    Имя
+                    <input type="text" id="register-first-name" required>
+                </label>
+                <label>
+                    Фамилия
+                    <input type="text" id="register-last-name" required>
+                </label>
+                <label>
+                    Email
+                    <input type="email" id="register-email" required>
+                </label>
+                <label>
+                    Пароль
+                    <input type="password" id="register-password" minlength="6" required>
+                </label>
+                <button type="submit">Создать аккаунт</button>
+            </form>
+        </section>
+    </div>
+
+    <p id="auth-message" class="auth-message"></p>
+</div>
+
+<style>
+    .auth-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.2rem;
+    }
+
+    .auth-card {
+        border: 1px solid #e4e7eb;
+        border-radius: 12px;
+        padding: 1.2rem;
+        background: #fff;
+    }
+
+    .auth-card h2 {
+        margin-bottom: 0.8rem;
+        color: #1f2933;
+    }
+
+    .auth-form {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .auth-form label {
+        display: grid;
+        gap: 0.35rem;
+        font-weight: 600;
+        color: #334e68;
+    }
+
+    .auth-form input {
+        border: 1px solid #cbd2d9;
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem;
+        font-size: 0.95rem;
+    }
+
+    .auth-form button {
+        border: 0;
+        border-radius: 8px;
+        padding: 0.7rem 1rem;
+        background: #ff6b35;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .auth-message {
+        margin-top: 1rem;
+        font-weight: 600;
+    }
+
+    .auth-message.error {
+        color: #b42318;
+    }
+
+    .auth-message.success {
+        color: #067647;
+    }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    (function authPageScript() {
+        const authApiUrl = "{{ auth_api_url|escapejs }}";
+        const nextUrl = "{{ next_url|default:'/'|escapejs }}";
+        const messageElement = document.getElementById("auth-message");
+
+        function setMessage(text, type) {
+            messageElement.textContent = text;
+            messageElement.className = "auth-message " + (type || "");
+        }
+
+        function redirectAfterAuth() {
+            const target = nextUrl && nextUrl !== "None" ? nextUrl : "/";
+            window.location.href = target;
+        }
+
+        async function submitJson(url, payload) {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (error) {
+                data = {};
+            }
+            if (!response.ok) {
+                const detail = data.detail || data.error || "Ошибка запроса";
+                throw new Error(detail);
+            }
+            return data;
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            setMessage("Проверяем данные...", "");
+            const email = document.getElementById("login-email").value.trim();
+            const password = document.getElementById("login-password").value;
+            try {
+                const data = await submitJson(authApiUrl + "/login", { email, password });
+                if (!data.access_token) {
+                    throw new Error("Сервис не вернул JWT");
+                }
+                window.GXAuth.saveToken(data.access_token);
+                window.GXAuth.refreshNav();
+                setMessage("Вход выполнен, перенаправляем...", "success");
+                redirectAfterAuth();
+            } catch (error) {
+                setMessage(error.message, "error");
+            }
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            setMessage("Создаём аккаунт...", "");
+            const payload = {
+                first_name: document.getElementById("register-first-name").value.trim(),
+                last_name: document.getElementById("register-last-name").value.trim(),
+                email: document.getElementById("register-email").value.trim(),
+                password: document.getElementById("register-password").value,
+            };
+            try {
+                const data = await submitJson(authApiUrl + "/register", payload);
+                if (!data.access_token) {
+                    throw new Error("Сервис не вернул JWT");
+                }
+                window.GXAuth.saveToken(data.access_token);
+                window.GXAuth.refreshNav();
+                setMessage("Регистрация успешна, перенаправляем...", "success");
+                redirectAfterAuth();
+            } catch (error) {
+                setMessage(error.message, "error");
+            }
+        }
+
+        document.getElementById("login-form").addEventListener("submit", handleLogin);
+        document.getElementById("register-form").addEventListener("submit", handleRegister);
+
+        if (window.GXAuth.getToken()) {
+            setMessage("Вы уже авторизованы.", "success");
+        }
+    })();
+</script>
+{% endblock %}

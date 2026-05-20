@@ -1,0 +1,658 @@
+{% extends 'main/layout.html' %}
+
+{% block content %}
+<div class="content-section">
+    <!-- Поиск клубов -->
+    <div class="search-section">
+        <h2>🔍 Поиск клубов</h2>
+        <form method="get" action="{% url 'home' %}" class="search-form">
+            <div class="search-container">
+                <input type="text" 
+                       name="club_q" 
+                       value="{{ club_query }}"
+                       placeholder="Введите название клуба или страну..." 
+                       class="search-input">
+                <button type="submit" class="search-btn">
+                    Найти клубы
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Поиск матчей -->
+    <div class="search-section">
+        <h2>⚽ Поиск матчей</h2>
+        <form method="get" action="{% url 'home' %}" class="search-form match-search">
+            <div class="match-search-fields">
+                <div class="search-field">
+                    <label>Клуб дома:</label>
+                    <input type="text" 
+                           name="match_home" 
+                           value="{{ match_query_home }}"
+                           placeholder="Название домашнего клуба..." 
+                           class="search-input">
+                </div>
+                <div class="search-field">
+                    <label>Клуб на выезде:</label>
+                    <input type="text" 
+                           name="match_away" 
+                           value="{{ match_query_away }}"
+                           placeholder="Название гостевого клуба..." 
+                           class="search-input">
+                </div>
+                <div class="search-field">
+                    <label>&nbsp;</label>
+                    <button type="submit" class="search-btn">
+                        Найти матчи
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Поиск турниров -->
+    <div class="search-section">
+        <h2>🏆 Поиск турниров</h2>
+        <form method="get" action="{% url 'home' %}" class="search-form">
+            <div class="search-container">
+                <input type="text" 
+                       name="tournament_q" 
+                       value="{{ tournament_query }}"
+                       placeholder="Введите название турнира или страну..." 
+                       class="search-input">
+                <button type="submit" class="search-btn">
+                    Найти турниры
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Результаты поиска турниров -->
+    {% if tournament_query %}
+    <div class="results-section">
+        <h3>🏆 Результаты поиска турниров: {{ tournaments.count }}</h3>
+        
+        {% if tournaments %}
+            <div class="tournaments-grid">
+                {% for tournament in tournaments %}
+                <a href="{% url 'tournament' tournament.id %}" class="tournament-card-link">
+                    <div class="tournament-card">
+                        <div class="tournament-header">
+                            {% if tournament.logo_src %}
+                            <div class="tournament-logo">
+                                <img src="{{ tournament.logo_src }}" alt="{{ tournament.name }}">
+                            </div>
+                            {% endif %}
+                            <h4>{{ tournament.name }}</h4>
+                        </div>
+                        <div class="tournament-info">
+                            {% if tournament.country %}
+                            <p class="tournament-country">
+                                <i class="fas fa-map-marker-alt"></i> {{ tournament.country }}
+                            </p>
+                            {% endif %}
+                            <div class="tournament-stats">
+                                <div class="tournament-stat">
+                                    <span class="stat-number">{{ tournament.participants_count }}</span>
+                                    <span class="stat-label">участников</span>
+                                </div>
+                                <div class="tournament-stat">
+                                    <span class="stat-number">{{ tournament.matches_count }}</span>
+                                    <span class="stat-label">матчей</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tournament-view">
+                            <span>Подробнее →</span>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-results">
+                <p>Турниры по запросу "{{ tournament_query }}" не найдены.</p>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Результаты поиска клубов -->
+    {% if club_query %}
+    <div class="results-section">
+        <h3>🏆 Результаты поиска клубов: {{ clubs.count }}</h3>
+        
+        {% if clubs %}
+            <div class="clubs-grid">
+                {% for club in clubs %}
+                <a href="{% url 'club' club.id %}" class="club-card-link">
+                    <div class="club-card">
+                        {% if club.emblem_src %}
+                        <div class="club-emblem">
+                            <img src="{{ club.emblem_src }}" alt="{{ club.name }}">
+                        </div>
+                        {% endif %}
+                        <div class="club-info">
+                            <h4>{{ club.name }}</h4>
+                            <p class="club-location">{{ club.country }}, {{ club.town }}</p>
+                            <p class="club-stadium">{{ club.stadium }}</p>
+                        </div>
+                        <div class="club-stats">
+                            <span class="stat-goals">⚽ {{ club.goals }}</span>
+                            <span class="stat-missed">🛡️ {{ club.goals_missed }}</span>
+                            <span class="stat-possession">🎯 {{ club.possession }}%</span>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-results">
+                <p>Клубы по запросу "{{ club_query }}" не найдены.</p>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Результаты поиска матчей -->
+    {% if match_query_home or match_query_away %}
+    <div class="results-section">
+        <h3>📊 Результаты поиска матчей: {{ matches.count }}</h3>
+        
+        {% if matches %}
+            <div class="matches-preview">
+                {% for match in matches|slice:":10" %}
+                <a href="{% url 'match' match.id %}" class="match-preview-link">
+                    <div class="match-preview-card {{ match.status }}">
+                        <div class="match-teams">
+                            <div class="team home-team">
+                                {% if match.home_club.emblem_src %}
+                                <img src="{{ match.home_club.emblem_src }}" alt="{{ match.home_club.name }}" class="team-logo-small">
+                                {% endif %}
+                                <span class="team-name">{{ match.home_club.name }}</span>
+                                {% if match.status == 'finished' %}
+                                <span class="team-score">{{ match.home_goals }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="match-vs">VS</div>
+                            <div class="team away-team">
+                                {% if match.status == 'finished' %}
+                                <span class="team-score">{{ match.away_goals }}</span>
+                                {% endif %}
+                                <span class="team-name">{{ match.away_club.name }}</span>
+                                {% if match.away_club.emblem_src %}
+                                <img src="{{ match.away_club.emblem_src }}" alt="{{ match.away_club.name }}" class="team-logo-small">
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="match-preview-info">
+                            <span class="match-date">{{ match.datetime|date:"d.m.Y" }}</span>
+                            <span class="match-tournament">{{ match.tournament }}</span>
+                            <span class="match-status-badge {{ match.status }}">
+                                {% if match.status == 'scheduled' %}Запланирован{% elif match.status == 'finished' %}Завершен{% else %}{{ match.status }}{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-results">
+                <p>Матчи по заданным критериям не найдены.</p>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+
+<style>
+    .search-section {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        border: 1px solid #e9ecef;
+    }
+
+    .search-section h2 {
+        margin-bottom: 1rem;
+        color: #2c3e50;
+    }
+
+    .search-container {
+        display: flex;
+        max-width: 100%;
+        margin: 0;
+    }
+
+    .match-search-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 1rem;
+        align-items: end;
+    }
+
+    .search-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .search-field label {
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.9rem;
+    }
+
+    .search-input {
+        padding: 10px 15px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        outline: none;
+        width: 100%;
+    }
+
+    .search-input:focus {
+        border-color: #ff6b35;
+    }
+
+    .search-btn {
+        background: #ff6b35;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+    }
+
+    .search-btn:hover {
+        background: #e55a2b;
+        transform: translateY(-1px);
+    }
+
+    .results-section {
+        margin-bottom: 3rem;
+    }
+
+    .popular-section {
+        margin-bottom: 3rem;
+        margin-top: 2rem;
+    }
+
+    .results-section h3,
+    .popular-section h3 {
+        color: #2c3e50;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #ff6b35;
+    }
+
+    .tournaments-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .tournament-card-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .tournament-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .tournament-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 123, 255, 0.2);
+        border-color: #007bff;
+    }
+
+    .tournament-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .tournament-logo {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .tournament-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .tournament-card h4 {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 1.1rem;
+        flex: 1;
+    }
+
+    .tournament-info {
+        flex: 1;
+    }
+
+    .tournament-country {
+        color: #666;
+        margin: 0.5rem 0;
+        font-size: 0.9rem;
+    }
+
+    .tournament-stats {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .tournament-stat {
+        text-align: center;
+        flex: 1;
+    }
+
+    .stat-number {
+        display: block;
+        font-weight: bold;
+        font-size: 1.2rem;
+        color: #ff6b35;
+    }
+
+    .stat-label {
+        display: block;
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 0.2rem;
+    }
+
+    .tournament-view {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #eee;
+        text-align: center;
+        color: #007bff;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    /* Стили для существующих элементов */
+    .matches-preview {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+
+    .match-preview-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .match-preview-card {
+        background: white;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        border-left: 4px solid #ddd;
+    }
+
+    .match-preview-card.finished {
+        border-left-color: #28a745;
+    }
+
+    .match-preview-card:hover {
+        transform: translateX(3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .match-teams {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+
+    .team {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        flex: 1;
+    }
+
+    .home-team {
+        justify-content: flex-start;
+    }
+
+    .away-team {
+        justify-content: flex-end;
+        flex-direction: row-reverse;
+    }
+
+    .team-logo-small {
+        width: 30px;
+        height: 30px;
+        object-fit: contain;
+    }
+
+    .team-name {
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .team-score {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #2c3e50;
+        min-width: 25px;
+        text-align: center;
+    }
+
+    .match-vs {
+        color: #6c757d;
+        font-weight: bold;
+        margin: 0 1rem;
+        font-size: 0.9rem;
+    }
+
+    .match-preview-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .match-date, .match-tournament {
+        color: #6c757d;
+        font-size: 0.8rem;
+    }
+
+    .match-status-badge {
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        color: white;
+    }
+
+    .match-status-badge.finished {
+        background: #28a745;
+    }
+
+    .match-status-badge.scheduled {
+        background: #ffc107;
+        color: #000;
+    }
+
+    .clubs-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .club-card-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .club-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .club-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(255, 107, 53, 0.2);
+        border-color: #ff6b35;
+    }
+
+    .club-emblem {
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    .club-emblem img {
+        width: 50px;
+        height: 50px;
+        object-fit: contain;
+    }
+
+    .club-info {
+        text-align: center;
+        margin-bottom: 1rem;
+        flex-grow: 1;
+    }
+
+    .club-info h4 {
+        margin: 0 0 0.5rem 0;
+        color: #2c3e50;
+        font-size: 1.1rem;
+    }
+
+    .club-location {
+        color: #666;
+        margin: 0.3rem 0;
+        font-size: 0.85rem;
+    }
+
+    .club-stadium {
+        color: #888;
+        margin: 0.3rem 0;
+        font-size: 0.8rem;
+        font-style: italic;
+    }
+
+    .club-stats {
+        display: flex;
+        justify-content: space-around;
+        padding-top: 1rem;
+        border-top: 1px solid #eee;
+    }
+
+    .stat-goals, .stat-missed, .stat-possession {
+        font-weight: bold;
+        color: #ff6b35;
+        font-size: 0.8rem;
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 2rem;
+        color: #6c757d;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .more-results {
+        text-align: center;
+        margin-top: 1.5rem;
+    }
+
+    .see-more-btn {
+        display: inline-block;
+        background: #6c757d;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 20px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .see-more-btn:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+    }
+
+    @media (max-width: 768px) {
+        .match-search-fields {
+            grid-template-columns: 1fr;
+        }
+        
+        .search-container {
+            flex-direction: column;
+        }
+        
+        .search-btn {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+        
+        .match-teams {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .team {
+            justify-content: center !important;
+        }
+        
+        .match-preview-info {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .clubs-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .tournaments-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}

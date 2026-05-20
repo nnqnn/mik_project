@@ -1,0 +1,44 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5674:5672"
+      - "15674:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    image: mik-project-app:latest
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      DATABASE_URL: sqlite:////data/app.db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-secret}
+    volumes:
+      - sqlite-data:/data
+    ports:
+      - "8011:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  profile-worker:
+    build: .
+    image: mik-project-app:latest
+    command: python -m app.worker
+    environment:
+      DATABASE_URL: sqlite:////data/app.db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-secret}
+    volumes:
+      - sqlite-data:/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  sqlite-data:

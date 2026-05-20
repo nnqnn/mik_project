@@ -1,0 +1,314 @@
+{% extends 'main/layout.html' %}
+
+{% block content %}
+<div class="content-section">
+    <div class="club-detail-header">
+        {% if club.emblem_src %}
+        <div class="club-detail-emblem">
+            <img src="{{ club.emblem_src }}" alt="{{ club.name }}">
+        </div>
+        {% endif %}
+        <div class="club-detail-info">
+            <h1>{{ club.name }}</h1>
+            <p class="club-location">{{ club.country }}, {{ club.town }}</p>
+            <p class="club-stadium">🏟️ {{ club.stadium }}</p>
+            <p class="club-founded">📅 Основан: {{ club.founded }}</p>
+        </div>
+    </div>
+
+    <div class="club-stats-grid">
+        <div class="stat-card">
+            <h3>⚽ Забито в среднем за матч</h3>
+            <p class="stat-value">{{ club.goals }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>⚽ Пропущено в среднем за матч</h3>
+            <p class="stat-value">{{ club.goals_missed }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>🎯 Среднее владение мячом</h3>
+            <p class="stat-value">{{ club.possession }}%</p>
+        </div>
+        <div class="stat-card">
+            <h3>💰 Суммарная трансферная стоимость</h3>
+            <p class="stat-value">{{ club.price }} €</p>
+        </div>
+    </div>
+
+    <div class="matches-section">
+        
+        {% if last_matches %}
+        <h2 style="margin-top: 2rem;">Последние 5 матчей</h2>
+        <div class="last-matches-list">
+            {% for match in last_matches %}
+            <a href="{% url 'match' match.id %}" class="last-match-item">
+                <div class="match-date">
+                    {{ match.datetime|date:"d.m.Y H:i" }}
+                </div>
+                <div class="match-teams">
+                    <span class="home-team {% if match.home_club == club %}current-club{% endif %}">
+                        {{ match.home_club.name }}
+                    </span>
+                    <span class="match-result-badge 
+                        {% if match.home_club == club %}
+                            {% if match.home_goals > match.away_goals %}win-badge
+                            {% elif match.home_goals == match.away_goals %}draw-badge
+                            {% else %}loss-badge{% endif %}
+                        {% else %}
+                            {% if match.away_goals > match.home_goals %}win-badge
+                            {% elif match.away_goals == match.home_goals %}draw-badge
+                            {% else %}loss-badge{% endif %}
+                        {% endif %}">
+                        {{ match.home_goals }}:{{ match.away_goals }}
+                    </span>
+                    <span class="away-team {% if match.away_club == club %}current-club{% endif %}">
+                        {{ match.away_club.name }}
+                    </span>
+                </div>
+                <div class="match-tournament">
+                    {% if match.tournament %}
+                    <span class="tournament-badge">{{ match.tournament }}</span>
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="no-matches" style="margin-top: 1rem; text-align: center; color: #666; font-style: italic;">
+            Нет завершенных матчей
+        </p>
+        {% endif %}
+    </div>
+
+   
+
+<style>
+    .club-detail-header {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        margin-bottom: 3rem;
+        padding: 2rem;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .club-detail-emblem img {
+        width: 120px;
+        height: 120px;
+        object-fit: contain;
+    }
+
+    .club-detail-info h1 {
+        color: #2c3e50;
+        margin-bottom: 1rem;
+    }
+
+    .club-location {
+        font-size: 1.2rem;
+        color: #666;
+        margin-bottom: 0.5rem;
+    }
+
+    .club-stadium, .club-founded {
+        color: #888;
+        margin: 0.3rem 0;
+    }
+
+    .club-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+
+    .stat-card h3 {
+        margin: 0 0 1rem 0;
+        color: #555;
+        font-size: 1rem;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #ff6b35;
+        margin: 0;
+    }
+
+    .matches-section, .tournaments-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .match-results {
+        display: flex;
+        gap: 0.8rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .match-result {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+        font-size: 14px;
+    }
+
+    .match-result.win {
+        background: #28a745;
+    }
+
+    .match-result.draw {
+        background: #ffc107;
+        color: #000;
+    }
+
+    .match-result.loss {
+        background: #dc3545;
+    }
+
+    /* Стили для списка матчей */
+    .last-matches-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .last-match-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        text-decoration: none;
+        color: #333;
+        transition: all 0.3s ease;
+        border: 1px solid #e9ecef;
+    }
+
+    .last-match-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        background: #f8f9fa;
+        border-color: #ff6b35;
+    }
+
+    .match-date {
+        font-size: 0.9rem;
+        color: #666;
+        min-width: 120px;
+    }
+
+    .match-teams {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-grow: 1;
+        justify-content: center;
+    }
+
+    .home-team, .away-team {
+        font-weight: 500;
+    }
+
+    .current-club {
+        font-weight: bold;
+        color: #ff6b35;
+    }
+
+    .match-result-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-weight: bold;
+        color: white;
+        min-width: 60px;
+        text-align: center;
+    }
+
+    .win-badge {
+        background: #28a745;
+    }
+
+    .draw-badge {
+        background: #ffc107;
+        color: #000;
+    }
+
+    .loss-badge {
+        background: #dc3545;
+    }
+
+    .match-tournament {
+        min-width: 150px;
+        text-align: right;
+    }
+
+    .tournament-badge {
+        background: #e9ecef;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        color: #495057;
+    }
+
+    .tournaments-list {
+        display: flex;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+    }
+
+    .tournament-tag {
+        background: #e9ecef;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        color: #495057;
+        font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+        .club-detail-header {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .club-stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .last-match-item {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.5rem;
+        }
+
+        .match-date, .match-tournament {
+            text-align: center;
+        }
+
+        .match-teams {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}

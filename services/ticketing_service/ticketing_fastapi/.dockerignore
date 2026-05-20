@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+alembic/versions/__pycache__/
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+build/
+dist/

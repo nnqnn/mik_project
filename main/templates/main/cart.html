@@ -1,0 +1,281 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}{{ title }} - GoroXcore{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="content-section">
+    <div class="cart-head">
+        <p>Здесь отображаются ваши бронирования билетов.</p>
+    </div>
+
+    <div id="cart-message" class="cart-message"></div>
+    <div id="bookings-list" class="bookings-list"></div>
+</div>
+
+<style>
+    .cart-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    .cart-message {
+        margin-bottom: 0.9rem;
+        font-weight: 600;
+    }
+
+    .cart-message.error {
+        color: #b42318;
+    }
+
+    .cart-message.success {
+        color: #067647;
+    }
+
+    .bookings-list {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .booking-card {
+        border: 1px solid #dfe3e8;
+        border-radius: 10px;
+        padding: 1rem;
+        background: #fff;
+    }
+
+    .booking-main {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.55rem;
+    }
+
+    .booking-main strong {
+        color: #243b53;
+    }
+
+    .booking-actions {
+        margin-top: 0.8rem;
+        display: flex;
+        gap: 0.7rem;
+        flex-wrap: wrap;
+    }
+
+    .booking-actions button {
+        border: 0;
+        border-radius: 8px;
+        padding: 0.55rem 0.9rem;
+        font-weight: 700;
+        display: inline-block;
+        color: #fff;
+        cursor: pointer;
+    }
+
+    .booking-actions button.pay {
+        background: #ff6b35;
+    }
+
+    .booking-actions button.cancel {
+        background: #d92d20;
+    }
+
+    .status-badge {
+        border-radius: 20px;
+        padding: 0.2rem 0.7rem;
+        font-size: 0.83rem;
+        font-weight: 700;
+        display: inline-block;
+    }
+
+    .status-pending_payment {
+        background: #fff4e5;
+        color: #b54708;
+    }
+
+    .status-confirmed {
+        background: #ecfdf3;
+        color: #067647;
+    }
+
+    .status-cancelled,
+    .status-expired {
+        background: #fef3f2;
+        color: #b42318;
+    }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+    <script>
+    (function cartPageScript() {
+        const ticketingApiUrl = "{{ ticketing_api_url|escapejs }}";
+        const paymentApiUrl = "{{ payment_api_url|escapejs }}";
+        const messageElement = document.getElementById("cart-message");
+        const listElement = document.getElementById("bookings-list");
+
+        function setMessage(text, type) {
+            messageElement.textContent = text || "";
+            messageElement.className = "cart-message " + (type || "");
+        }
+
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function canCancel(status) {
+            return status === "pending_payment" || status === "confirmed";
+        }
+
+        function canPay(booking) {
+            return booking.status === "pending_payment" && Boolean(booking.payment_reference);
+        }
+
+        function statusLabel(status) {
+            const labels = {
+                pending_payment: "ожидает оплаты",
+                confirmed: "оплачено",
+                cancelled: "отменено",
+                expired: "истекло",
+            };
+            return labels[status] || status;
+        }
+
+        function renderBookings(bookings) {
+            if (!bookings.length) {
+                listElement.innerHTML = "<p>У вас пока нет бронирований.</p>";
+                return;
+            }
+            listElement.innerHTML = bookings.map(function mapBooking(booking) {
+                const statusClass = "status-" + escapeHtml(booking.status);
+                const payAction = canPay(booking)
+                    ? "<button class=\"pay\" data-booking-id=\"" + escapeHtml(booking.id) + "\" data-payment-id=\"" + escapeHtml(booking.payment_reference) + "\">Оплатить</button>"
+                    : "";
+                const cancelAction = canCancel(booking.status)
+                    ? "<button class=\"cancel\" data-booking-id=\"" + escapeHtml(booking.id) + "\">Отменить бронь</button>"
+                    : "";
+                return (
+                    "<article class=\"booking-card\">" +
+                        "<div class=\"booking-main\">" +
+                            "<div><strong>ID брони:</strong> " + escapeHtml(booking.id) + "</div>" +
+                            "<div><strong>Матч:</strong> #" + escapeHtml(booking.match_id) + "</div>" +
+                            "<div><strong>Билетов:</strong> " + escapeHtml(booking.quantity) + "</div>" +
+                            "<div><strong>Сумма:</strong> " + escapeHtml(booking.total_price) + " " + escapeHtml(booking.currency) + "</div>" +
+                            "<div><strong>Статус:</strong> <span class=\"status-badge " + statusClass + "\">" + escapeHtml(statusLabel(booking.status)) + "</span></div>" +
+                            "<div><strong>Платёж:</strong> " + escapeHtml(booking.payment_reference || "не создан") + "</div>" +
+                        "</div>" +
+                        "<div class=\"booking-actions\">" + payAction + cancelAction + "</div>" +
+                    "</article>"
+                );
+            }).join("");
+        }
+
+        async function requestJson(url, options) {
+            const token = window.GXAuth.getToken();
+            if (!token) {
+                window.GXAuth.requireAuthOrRedirect(window.location.pathname);
+                throw new Error("Необходима авторизация");
+            }
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token,
+                    ...(options && options.headers ? options.headers : {}),
+                },
+            });
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (error) {
+                data = {};
+            }
+            if (!response.ok) {
+                throw new Error(data.details || data.error || data.detail || "Ошибка запроса");
+            }
+            return data;
+        }
+
+        async function loadBookings() {
+            setMessage("Загружаем бронирования...", "");
+            try {
+                const bookings = await requestJson(ticketingApiUrl + "/bookings", { method: "GET" });
+                renderBookings(bookings);
+                setMessage("Данные обновлены.", "success");
+            } catch (error) {
+                setMessage(error.message, "error");
+            }
+        }
+
+        async function cancelBooking(bookingId) {
+            if (!window.confirm("Отменить это бронирование?")) {
+                return;
+            }
+            setMessage("Отменяем бронирование...", "");
+            try {
+                await requestJson(ticketingApiUrl + "/bookings/" + bookingId, { method: "DELETE" });
+                setMessage("Бронирование отменено.", "success");
+                await loadBookings();
+            } catch (error) {
+                setMessage(error.message, "error");
+            }
+        }
+
+        async function confirmBooking(bookingId, paymentId) {
+            await requestJson(ticketingApiUrl + "/bookings/" + encodeURIComponent(bookingId) + "/confirm", {
+                method: "POST",
+                body: JSON.stringify({ payment_reference: paymentId }),
+            });
+        }
+
+        async function payBooking(bookingId, paymentId) {
+            setMessage("Подтверждаем оплату...", "");
+            try {
+                await requestJson(paymentApiUrl + "/payments/" + encodeURIComponent(paymentId) + "/pay", {
+                    method: "POST",
+                });
+                await confirmBooking(bookingId, paymentId);
+                setMessage("Бронирование оплачено.", "success");
+                await loadBookings();
+            } catch (error) {
+                setMessage(error.message, "error");
+            }
+        }
+
+        listElement.addEventListener("click", function onClick(event) {
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) {
+                return;
+            }
+            if (target.matches("button.cancel")) {
+                const bookingId = target.getAttribute("data-booking-id");
+                if (bookingId) {
+                    cancelBooking(bookingId);
+                }
+                return;
+            }
+            if (target.matches("button.pay")) {
+                const bookingId = target.getAttribute("data-booking-id");
+                const paymentId = target.getAttribute("data-payment-id");
+                if (bookingId && paymentId) {
+                    payBooking(bookingId, paymentId);
+                }
+            }
+        });
+
+        if (!window.GXAuth.requireAuthOrRedirect(window.location.pathname)) {
+            return;
+        }
+        loadBookings();
+    })();
+</script>
+{% endblock %}

@@ -1,0 +1,723 @@
+<!-- templates/main/match.html -->
+{% extends 'main/layout.html' %}
+
+{% block title %}{{ title }} - GoroXcore{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="match-detail">
+    <div class="content-section">
+        <!-- Основная информация о матче -->
+        <div class="match-info">
+            <div class="match-teams">
+                <div class="team home-team">
+                    {% if match.home_club.emblem_src %}
+                        <img src="{{ match.home_club.emblem_src }}" alt="{{ match.home_club.name }}" class="team-logo">
+                    {% endif %}
+                    <h2>{{ match.home_club.name }}</h2>
+                    <p class="team-info">{{ match.home_club.country }}, {{ match.home_club.town }}</p>
+                </div>
+                
+                <div class="match-score">
+                    {% if match.status == 'finished' %}
+                        <div class="score">{{ match.home_goals }} : {{ match.away_goals }}</div>
+                        {% if winner == 'draw' %}
+                            <div class="result draw">Ничья</div>
+                        {% else %}
+                            <div class="result winner">Победитель: {{ winner.name }}</div>
+                        {% endif %}
+                    {% else %}
+                        <div class="vs">vs</div>
+                        <div class="match-date">{{ match.datetime|date:"d.m.Y H:i" }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="team away-team">
+                    {% if match.away_club.emblem_src %}
+                        <img src="{{ match.away_club.emblem_src }}" alt="{{ match.away_club.name }}" class="team-logo">
+                    {% endif %}
+                    <h2>{{ match.away_club.name }}</h2>
+                    <p class="team-info">{{ match.away_club.country }}, {{ match.away_club.town }}</p>
+                </div>
+            </div>
+            
+            <div class="match-meta">
+                <div class="meta-item">
+                    <strong>Дата и время:</strong> {{ match.datetime|date:"d.m.Y H:i" }}
+                </div>
+                <div class="meta-item">
+                    <strong>Стадион:</strong> {{ match.stadium }}, {{ match.town }}
+                </div>
+                <div class="meta-item">
+                    <strong>Турнир:</strong> {{ match.tournament|default:"Не указан" }}
+                </div>
+                <div class="meta-item">
+                    <strong>Статус:</strong> 
+                    <span class="status-{{ match.status }}">
+                        {{ match.get_status_display }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        {% if match.status == 'scheduled' %}
+        <div class="booking-panel">
+            <div class="booking-panel-head">
+                <div>
+                    <h3>Бронирование билетов</h3>
+                    <p>{{ match.stadium }}, {{ match.town }}</p>
+                </div>
+                <div class="booking-price">
+                    <span id="booking-unit-price">{{ match.price }}</span> RUB
+                </div>
+            </div>
+
+            <div class="booking-facts">
+                <div>
+                    <strong>Доступно мест</strong>
+                    <span id="booking-available">{{ match.seats_available }}</span>
+                </div>
+                <div>
+                    <strong>Дата</strong>
+                    <span>{{ match.datetime|date:"d.m.Y H:i" }}</span>
+                </div>
+                <div>
+                    <strong>Оплата</strong>
+                    <span>в корзине</span>
+                </div>
+            </div>
+
+            <form id="booking-form"
+                  class="booking-form"
+                  data-match-id="{{ match.id }}"
+                  data-unit-price="{{ match.price }}"
+                  data-seats="{{ match.seats_available }}"
+                  data-currency="RUB"
+                  data-status="{{ match.status }}">
+                <label>
+                    Количество билетов
+                    <input type="number" id="booking-quantity" min="1" value="1" required>
+                </label>
+                <div class="booking-total">
+                    Итого: <span id="booking-total">{{ match.price }}</span> RUB
+                </div>
+                <button type="submit" id="booking-submit-btn">Забронировать</button>
+            </form>
+            <p id="booking-message" class="booking-message"></p>
+        </div>
+        {% endif %}
+
+        <!-- Статистика матча -->
+        {% if match.status == 'finished' %}
+        <div class="match-stats">
+            <h3>Статистика матча</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h4>Владение мячом</h4>
+                    <div class="stat-bar">
+                        <div class="stat-label">{{ match.home_club.name }}</div>
+                        <div class="stat-value">{{ match.home_possession }}%</div>
+                        <div class="stat-bar-container">
+                            <div class="stat-bar-fill home" style="width: {{ match.home_possession }}%"></div>
+                        </div>
+                    </div>
+                    <div class="stat-bar">
+                        <div class="stat-label">{{ match.away_club.name }}</div>
+                        <div class="stat-value">{{ match.away_possession }}%</div>
+                        <div class="stat-bar-container">
+                            <div class="stat-bar-fill away" style="width: {{ match.away_possession }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h4>Удары</h4>
+                    <div class="stat-row">
+                        <span>{{ match.home_club.name }}:</span>
+                        <span>{{ match.home_shots }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>{{ match.away_club.name }}:</span>
+                        <span>{{ match.away_shots }}</span>
+                    </div>
+                    <div class="stat-row total">
+                        <span>Всего:</span>
+                        <span>{{ match.home_shots|add:match.away_shots }}</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h4>Удары в створ</h4>
+                    <div class="stat-row">
+                        <span>{{ match.home_club.name }}:</span>
+                        <span>{{ match.home_shots_on_target }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>{{ match.away_club.name }}:</span>
+                        <span>{{ match.away_shots_on_target }}</span>
+                    </div>
+                    <div class="stat-row total">
+                        <span>Всего:</span>
+                        <span>{{ match.home_shots_on_target|add:match.away_shots_on_target }}</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h4>Сейвы вратарей</h4>
+                    <div class="stat-row">
+                        <span>{{ match.home_club.name }}:</span>
+                        <span>{{ match.home_saves }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>{{ match.away_club.name }}:</span>
+                        <span>{{ match.away_saves }}</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h4>Красные карточки</h4>
+                    <div class="stat-row">
+                        <span>{{ match.home_club.name }}:</span>
+                        <span class="red-card">{{ match.home_red_cards }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>{{ match.away_club.name }}:</span>
+                        <span class="red-card">{{ match.away_red_cards }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Навигация -->
+        <div class="match-navigation">
+            <a href="{% url 'home' %}" class="nav-button">На главную</a>
+            <a href="{% url 'club' match.home_club.id %}" class="nav-button">Страница {{ match.home_club.name }}</a>
+            <a href="{% url 'club' match.away_club.id %}" class="nav-button">Страница {{ match.away_club.name }}</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .match-detail {
+        width: 100%;
+    }
+
+    .booking-panel {
+        margin-top: 2rem;
+        background: #fff;
+        border: 1px solid #e4e7eb;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .booking-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #edf0f2;
+    }
+
+    .booking-panel h3 {
+        color: #2c3e50;
+        margin-bottom: 0.35rem;
+        font-size: 1.35rem;
+    }
+
+    .booking-panel p {
+        color: #667085;
+    }
+
+    .booking-price {
+        background: #fff4e5;
+        color: #b54708;
+        border-radius: 8px;
+        padding: 0.65rem 0.9rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .booking-facts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .booking-facts div {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 0.8rem;
+    }
+
+    .booking-facts strong,
+    .booking-facts span {
+        display: block;
+    }
+
+    .booking-facts strong {
+        color: #243b53;
+        margin-bottom: 0.25rem;
+    }
+
+    .booking-facts span {
+        color: #52606d;
+    }
+
+    .booking-form {
+        display: grid;
+        grid-template-columns: minmax(170px, 220px) 1fr auto;
+        align-items: end;
+        gap: 1rem;
+    }
+
+    .booking-form label {
+        display: grid;
+        gap: 0.35rem;
+        color: #334e68;
+        font-weight: 700;
+    }
+
+    .booking-form input {
+        border: 1px solid #cbd2d9;
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem;
+        font-size: 1rem;
+    }
+
+    .booking-total {
+        color: #1f2933;
+        font-size: 1.05rem;
+        font-weight: 800;
+        padding-bottom: 0.65rem;
+    }
+
+    .booking-form button {
+        border: 0;
+        border-radius: 8px;
+        background: #ff6b35;
+        color: #fff;
+        padding: 0.72rem 1rem;
+        font-weight: 800;
+        cursor: pointer;
+        min-height: 44px;
+    }
+
+    .booking-form button:disabled {
+        background: #9aa5b1;
+        cursor: not-allowed;
+    }
+
+    .booking-message {
+        margin-top: 0.85rem;
+        font-weight: 700;
+        min-height: 1.5rem;
+    }
+
+    .booking-message.error {
+        color: #b42318;
+    }
+
+    .booking-message.success {
+        color: #067647;
+    }
+    
+    .match-teams {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 2rem;
+    }
+    
+    .team {
+        text-align: center;
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .team-logo {
+        max-width: 120px;
+        max-height: 120px;
+        margin-bottom: 1rem;
+        object-fit: contain;
+    }
+    
+    .team h2 {
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        font-size: 1.8rem;
+    }
+    
+    .team-info {
+        color: #666;
+        font-size: 0.9rem;
+    }
+    
+    .match-score {
+        text-align: center;
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .score {
+        font-size: 4rem;
+        font-weight: bold;
+        color: #ff6b35;
+        margin-bottom: 0.5rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .vs {
+        font-size: 3rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+    
+    .match-date {
+        font-size: 1.2rem;
+        color: #666;
+    }
+    
+    .result {
+        font-size: 1.3rem;
+        font-weight: bold;
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        display: inline-block;
+    }
+    
+    .winner {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        color: white;
+    }
+    
+    .draw {
+        background: linear-gradient(135deg, #FF9800, #F57C00);
+        color: white;
+    }
+    
+    .match-meta {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-top: 2rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    
+    .meta-item {
+        padding: 0.5rem;
+    }
+    
+    .status-scheduled {
+        color: #ff6b35;
+        font-weight: bold;
+    }
+    
+    .status-finished {
+        color: #4CAF50;
+        font-weight: bold;
+    }
+    
+    .match-stats {
+        margin-top: 2rem;
+    }
+    
+    .match-stats h3 {
+        color: #2c3e50;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #ff6b35;
+        padding-bottom: 0.5rem;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .stat-card h4 {
+        color: #ff6b35;
+        margin-bottom: 1rem;
+        text-align: center;
+        font-size: 1.2rem;
+    }
+    
+    .stat-bar {
+        margin-bottom: 1rem;
+    }
+    
+    .stat-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.3rem;
+        font-size: 0.9rem;
+    }
+    
+    .stat-value {
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    
+    .stat-bar-container {
+        height: 10px;
+        background: #e0e0e0;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+    
+    .stat-bar-fill {
+        height: 100%;
+        border-radius: 5px;
+    }
+    
+    .stat-bar-fill.home {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+    
+    .stat-bar-fill.away {
+        background: linear-gradient(90deg, #f093fb, #f5576c);
+    }
+    
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .stat-row:last-child {
+        border-bottom: none;
+    }
+    
+    .stat-row.total {
+        font-weight: bold;
+        color: #2c3e50;
+        margin-top: 0.5rem;
+        border-top: 2px solid #ff6b35;
+        border-bottom: none;
+        padding-top: 0.8rem;
+    }
+    
+    .red-card {
+        color: #f44336;
+        font-weight: bold;
+    }
+    
+    .match-navigation {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+    }
+    
+    .nav-button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.8rem 1.5rem;
+        border-radius: 25px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        text-align: center;
+        min-width: 150px;
+    }
+    
+    .nav-button:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    @media (max-width: 768px) {
+        .match-teams {
+            flex-direction: column;
+        }
+        
+        .team {
+            min-width: 100%;
+        }
+        
+        .score {
+            font-size: 3rem;
+        }
+        
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .booking-form {
+            grid-template-columns: 1fr;
+        }
+
+        .booking-total {
+            padding-bottom: 0;
+        }
+        
+        .match-navigation {
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .nav-button {
+            width: 100%;
+            max-width: 250px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if match.status == 'scheduled' %}
+<script>
+    (function matchBookingScript() {
+        const ticketingApiUrl = "{{ ticketing_api_url|escapejs }}";
+        const cartUrl = "{% url 'cart_page' %}";
+        const form = document.getElementById("booking-form");
+        if (!form) {
+            return;
+        }
+
+        const quantityInput = document.getElementById("booking-quantity");
+        const submitButton = document.getElementById("booking-submit-btn");
+        const messageElement = document.getElementById("booking-message");
+        const availableElement = document.getElementById("booking-available");
+        const unitPriceElement = document.getElementById("booking-unit-price");
+        const totalElement = document.getElementById("booking-total");
+        const matchId = Number(form.dataset.matchId);
+        let unitPrice = parseMoney(form.dataset.unitPrice);
+        let availableSeats = Number(form.dataset.seats || 0);
+        let currency = form.dataset.currency || "RUB";
+
+        function parseMoney(value) {
+            const normalized = String(value || "0").replace(",", ".");
+            const number = Number(normalized);
+            return Number.isFinite(number) ? number : 0;
+        }
+
+        function formatMoney(value) {
+            return Number(value || 0).toLocaleString("ru-RU", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+        }
+
+        function setMessage(text, type) {
+            messageElement.textContent = text || "";
+            messageElement.className = "booking-message " + (type || "");
+        }
+
+        function getQuantity() {
+            const quantity = Number(quantityInput.value);
+            return Number.isFinite(quantity) ? Math.max(1, Math.floor(quantity)) : 1;
+        }
+
+        function syncTotals() {
+            const quantity = Math.min(getQuantity(), Math.max(availableSeats, 1));
+            if (Number(quantityInput.value) !== quantity) {
+                quantityInput.value = quantity;
+            }
+            totalElement.textContent = formatMoney(unitPrice * quantity);
+        }
+
+        function syncAvailability() {
+            availableElement.textContent = String(availableSeats);
+            unitPriceElement.textContent = formatMoney(unitPrice);
+            quantityInput.max = String(Math.max(availableSeats, 1));
+            submitButton.disabled = availableSeats < 1;
+            if (availableSeats < 1) {
+                setMessage("На этот матч нет доступных мест.", "error");
+            }
+            syncTotals();
+        }
+
+        async function requestJson(url, options) {
+            const token = window.GXAuth.requireAuthOrRedirect(window.location.pathname);
+            if (!token) {
+                throw new Error("Необходима авторизация");
+            }
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token,
+                    ...(options && options.headers ? options.headers : {}),
+                },
+            });
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (error) {
+                data = {};
+            }
+            if (!response.ok) {
+                throw new Error(data.details || data.error || data.detail || "Ошибка запроса");
+            }
+            return data;
+        }
+
+        async function submitBooking(event) {
+            event.preventDefault();
+            const quantity = getQuantity();
+            if (quantity > availableSeats) {
+                setMessage("Выберите количество не больше доступных мест.", "error");
+                return;
+            }
+
+            submitButton.disabled = true;
+            setMessage("Создаем бронирование...", "");
+            try {
+                await requestJson(ticketingApiUrl + "/bookings", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        match_id: matchId,
+                        quantity: quantity,
+                        seats_available: availableSeats,
+                        unit_price: unitPrice.toFixed(2),
+                        currency: currency,
+                        match_status: form.dataset.status || "scheduled",
+                    }),
+                });
+                setMessage("Бронирование создано. Открываем корзину...", "success");
+                window.location.href = cartUrl;
+            } catch (error) {
+                setMessage(error.message, "error");
+                submitButton.disabled = availableSeats < 1;
+            }
+        }
+
+        quantityInput.addEventListener("input", syncTotals);
+        form.addEventListener("submit", submitBooking);
+        syncAvailability();
+    })();
+</script>
+{% endif %}
+{% endblock %}

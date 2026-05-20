@@ -1,0 +1,358 @@
+openapi: 3.0.0
+info:
+  title: Ticketing Service API
+  description: |
+    Сервис бронирования билетов на матчи. Пользовательские операции
+    требуют Bearer JWT из Auth Service. При создании бронирования API
+    создаёт связанный платёж в Payment Service.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8001
+    description: Локальный сервер для разработки
+paths:
+  /bookings:
+    get:
+      summary: Список бронирований
+      description: Возвращает массив бронирований билетов.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: matchId
+          in: query
+          required: false
+          description: Фильтр по идентификатору матча.
+          schema:
+            type: integer
+            example: 101
+        - name: status
+          in: query
+          required: false
+          description: Фильтр по статусу бронирования.
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+    post:
+      summary: Создать бронирование
+      description: Создаёт бронирование билетов на матч и связанный платёж.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreate'
+      responses:
+        '201':
+          description: Бронирование успешно создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingWithPayment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /bookings/{bookingId}:
+    get:
+      summary: Получить бронирование по ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          description: ID бронирования
+          schema:
+            type: integer
+            example: 501
+      responses:
+        '200':
+          description: Бронирование найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Отменить бронирование
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          description: ID бронирования
+          schema:
+            type: integer
+            example: 501
+      responses:
+        '200':
+          description: Бронирование отменено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /bookings/{bookingId}/confirm:
+    post:
+      summary: Подтвердить бронирование
+      description: Подтверждает бронирование после внешней оплаты.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          description: ID бронирования
+          schema:
+            type: integer
+            example: 501
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingConfirm'
+      responses:
+        '200':
+          description: Бронирование подтверждено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /matches/{matchId}/availability:
+    get:
+      summary: Проверить доступность билетов
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          description: ID матча
+          schema:
+            type: integer
+            example: 101
+      responses:
+        '200':
+          description: Информация о доступности
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Availability'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    BookingStatus:
+      type: string
+      description: Текущий статус бронирования
+      enum:
+        - pending_payment
+        - confirmed
+        - cancelled
+        - expired
+      example: pending_payment
+    Booking:
+      type: object
+      description: Полная модель бронирования (включая ID и статус)
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор бронирования
+          example: 501
+        match_id:
+          type: integer
+          description: ID матча
+          example: 101
+        customer_name:
+          type: string
+          description: ФИО клиента
+          example: Alex Gorokhovskiy
+        customer_email:
+          type: string
+          format: email
+          description: Email клиента
+          example: fan@example.com
+        quantity:
+          type: integer
+          description: Количество билетов
+          minimum: 1
+          example: 2
+        unit_price:
+          type: number
+          description: Цена за билет
+          example: 1500.00
+        total_price:
+          type: number
+          description: Итоговая стоимость всех билетов
+          example: 3000.00
+        currency:
+          type: string
+          description: Код валюты ISO
+          example: RUB
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        reserved_at:
+          type: string
+          format: date-time
+          description: Время создания бронирования
+          example: 2026-03-20T10:15:00Z
+        expires_at:
+          type: string
+          format: date-time
+          description: Время истечения бронирования
+          example: 2026-03-20T10:45:00Z
+        payment_reference:
+          type: string
+          description: Идентификатор внешнего платежа
+          nullable: true
+          example: pay_abc123
+      required:
+        - id
+        - match_id
+        - customer_name
+        - customer_email
+        - quantity
+        - unit_price
+        - total_price
+        - currency
+        - status
+        - reserved_at
+        - expires_at
+    BookingCreate:
+      type: object
+      description: Данные для создания бронирования. Email клиента берётся из JWT Auth Service.
+      properties:
+        match_id:
+          type: integer
+          description: ID матча
+          example: 101
+        customer_name:
+          type: string
+          nullable: true
+          description: ФИО клиента. Если не передано, берётся из JWT.
+          example: Alex Gorokhovskiy
+        quantity:
+          type: integer
+          description: Количество билетов
+          minimum: 1
+          example: 2
+      required:
+        - match_id
+        - quantity
+    BookingWithPayment:
+      allOf:
+        - $ref: '#/components/schemas/Booking'
+        - type: object
+          description: Бронирование вместе с созданным платежом
+          properties:
+            payment_id:
+              type: string
+              description: Идентификатор платежа
+              example: pay_a1b2c3d4
+            payment_url:
+              type: string
+              description: Ссылка на оплату
+              example: http://localhost:8002/payments/pay_a1b2c3d4
+            payment_status:
+              type: string
+              description: Статус платежа
+              example: pending
+          required:
+            - payment_id
+            - payment_url
+            - payment_status
+    BookingConfirm:
+      type: object
+      description: Необязательный идентификатор платежа для подтверждения
+      properties:
+        payment_reference:
+          type: string
+          description: Идентификатор внешнего платежа
+          example: pay_abc123
+    Availability:
+      type: object
+      description: Доступность билетов на матч
+      properties:
+        match_id:
+          type: integer
+          description: ID матча
+          example: 101
+        available_seats:
+          type: integer
+          description: Количество доступных мест
+          example: 245
+        unit_price:
+          type: number
+          description: Цена за билет
+          example: 1500.00
+        currency:
+          type: string
+          description: Код валюты ISO
+          example: RUB
+        can_reserve:
+          type: boolean
+          description: Можно ли создать бронирование
+          example: true
+      required:
+        - match_id
+        - available_seats
+        - unit_price
+        - currency
+        - can_reserve
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Некорректные данные запроса
+        code:
+          type: integer
+          example: 400
+        details:
+          type: string
+          example: quantity должно быть больше 0
+  responses:
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Недостаточно доступных мест
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: Зависимый сервис недоступен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
